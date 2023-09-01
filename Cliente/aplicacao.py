@@ -14,6 +14,7 @@ from enlace import *
 import time
 import numpy as np
 import random
+import datetime
 
 command1 = b'\x00\x00\x00\x00'
 command2 = b'\x00\x00\xBB\x00'
@@ -39,8 +40,7 @@ def sorteia_comandos():
     return random_commands
 
 def constroi_mensagem(lista_comandos):
-    total = len(lista_comandos)
-    mensagem = bytearray([total])
+    mensagem = bytearray([])
     for command in lista_comandos:
         mensagem += command
         mensagem += b'\xFB'
@@ -88,19 +88,15 @@ def main():
         txBuffer = constroi_mensagem(comandos)
         print(txBuffer)
         #txBuffer = b'\x12\x13\xAA'  #isso é um array de bytes
-       
         print("meu array de bytes tem tamanho {}" .format(len(txBuffer)))
         #faça aqui uma conferência do tamanho do seu txBuffer, ou seja, quantos bytes serão enviados.
-       
             
         #finalmente vamos transmitir os todos. Para isso usamos a funçao sendData que é um método da camada enlace.
         #faça um print para avisar que a transmissão vai começar.
         #tente entender como o método send funciona!
         #Cuidado! Apenas trasmita arrays de bytes!
-               
         
         com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
-          
         # A camada enlace possui uma camada inferior, TX possui um método para conhecermos o status da transmissão
         # O método não deve estar fincionando quando usado como abaixo. deve estar retornando zero. Tente entender como esse método funciona e faça-o funcionar.
         while com1.tx.getIsBussy():
@@ -109,6 +105,27 @@ def main():
         txSize = com1.tx.getStatus()
         print('enviou = {}' .format(txSize))
         
+        mensagem = b''
+        tempo_inicio = datetime.datetime.now()
+        recebeu = False
+        while (datetime.datetime.now() - tempo_inicio < datetime.timedelta(seconds=5)) and not recebeu:
+            if com1.rx.getBufferLen() > 0:
+                recebeu = True
+                rxBuffer, nRx = com1.getData(1)
+                mensagem += rxBuffer
+            
+            #print(mensagem)
+            
+        if not recebeu:
+            print("TIME OUT")
+        else:
+            comandos_recebidos = int.from_bytes(mensagem, byteorder='little')
+
+            print(f"O servidor informou que recebeu {comandos_recebidos} comandos")
+            if comandos_recebidos != len(comandos):
+                print(f"INCONSISTÊNCIA: Foram enviados {len(comandos)} e recebidos {comandos_recebidos}")
+            if comandos_recebidos == len(comandos):
+                print("SUCESSO")
         #Agora vamos iniciar a recepção dos dados. Se algo chegou ao RX, deve estar automaticamente guardado
         #Observe o que faz a rotina dentro do thread RX
         #print um aviso de que a recepção vai começar.
