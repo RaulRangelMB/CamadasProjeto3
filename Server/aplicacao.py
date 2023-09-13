@@ -26,8 +26,8 @@ serialName = "COM5"                  # Windows(variacao de)
 
 EOP = b'\xfb\xfb\xfb'
 
-MENSAGEM_SUCESSO = b'\x00\x00\00\00\00\00\00\00\00\00\00\00\00\00\00' + EOP
-MENSAGEM_HANDSHAKE = b'\x00\x00\00\00\00\00\00\00\00\00\00\00\00\00\01' + EOP
+MENSAGEM_SUCESSO = b'\00\00\00\00\00\00\00\00\00\00\00\00' + EOP
+MENSAGEM_HANDSHAKE = b'\00\00\00\00\00\00\00\00\00\00\00\01' + EOP
 
 def split_message(message):
     head = message[0:12]
@@ -61,28 +61,70 @@ def main():
         mensagens = []
         finalizado = False
 
+        handshake = False
+        mensagem_hs = bytearray()
+
+        while not handshake:
+            if com1.rx.getBufferLen() > 0:
+                rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
+                mensagem_hs += rxBuffer
+
+                if com1.rx.getBufferLen() == 0:
+                    print(mensagem_hs)
+                    head, payload, eop = split_message(mensagem_hs)
+                    print(head)
+                    
+                    if eop != b'\xfb\xfb\xfb':
+                        print("Erro no EOP!")
+                        break
+                
+                    if len(payload) != int(head[2]):
+                        print(len(payload))
+                        print(int(head[2]))
+                        print("Tamanho do payload não condiz com o head!")
+                        break
+                    
+                    if mensagem_hs == MENSAGEM_HANDSHAKE:
+                        handshake = True
+                        com1.sendData(MENSAGEM_HANDSHAKE)
+                        print('enviei handshake')
+
+        print("Handshake feito!")
+
         while not finalizado:
             if com1.rx.getBufferLen() > 0:
                 rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
                 #print("tenho {} bytes" .format(com1.rx.getBufferLen()))
                 mensagem += rxBuffer
-                #print(mensagem)
+                print(mensagem)
+                #print("aaa"*50)
 
                 if com1.rx.getBufferLen() == 0:
                     head, payload, eop = split_message(mensagem)
+                    
                     if eop != b'\xfb\xfb\xfb':
+                        print(eop)
                         print("Erro no EOP!")
                         break
-                    if len(payload) != head[2].to_bytes(length=1, byteorder='big'):
+                    
+                    if len(payload) != int(head[2]):
                         print("Tamanho do payload não condiz com o head!")
+                        print(len(payload))
+                        print(head[2])
+                        print(int(head[2]))
                         break
-                    num_msg += 1
-                    if num_msg != mensagem[0].to_bytes(length=1, byteorder='big'):
+                    
+                    if num_msg != int(mensagem[0]):
                         print("Número do pacote não condiz!")
+                        print
                         break
+                    
                     mensagens.append(mensagem)
+                    mensagem = bytearray()
+                    num_msg += 1
                     com1.sendData(MENSAGEM_SUCESSO)
-                    if num_msg == mensagem[1].to_bytes(length=1, byteorder='big'):
+                    
+                    if num_msg == int(mensagem[1]):
                         print("Comunicação encerrada.")
                         finalizado = True
                     
