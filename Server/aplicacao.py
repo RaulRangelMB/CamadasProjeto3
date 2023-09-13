@@ -24,16 +24,19 @@ import numpy as np
 #serialName = "/dev/tty.usbmodem1411" # Mac    (variacao de)
 serialName = "COM5"                  # Windows(variacao de)
 
-def split_message(message):
-    message = bytearray(message)
-    message.pop(0)
-    m = message.split(b'\xfb')
-    while b'' in m:
-        m.remove(b'')
-    return m
+EOP = b'\xfb\xfb\xfb'
 
-# def get_first(message):
-#     return message[0]
+MENSAGEM_SUCESSO = b'\x00\x00\00\00\00\00\00\00\00\00\00\00\00\00\00' + EOP
+MENSAGEM_HANDSHAKE = b'\x00\x00\00\00\00\00\00\00\00\00\00\00\00\00\01' + EOP
+
+def split_message(message):
+    head = message[0:12]
+    eop = message[-3:]
+    message = message[12:]
+    message = message[:-3]
+    payload = message
+
+    return head, payload, eop
 
 def main():
     try:
@@ -53,39 +56,72 @@ def main():
         com1.rx.clearBuffer()
         time.sleep(.1)
 
+        num_msg = 1
+        mensagem = bytearray()
+        mensagens = []
+        finalizado = False
 
-        mensagem = b''
+        while not finalizado:
+            if com1.rx.getBufferLen() > 0:
+                rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
+                #print("tenho {} bytes" .format(com1.rx.getBufferLen()))
+                mensagem += rxBuffer
+                #print(mensagem)
 
-        #acesso aos bytes recebidos
-        while True:
-            rxBuffer, nRx = com1.getData(1)
-            print("tenho {} bytes" .format(com1.rx.getBufferLen()))
-            mensagem += rxBuffer
-            print(mensagem)
+                if com1.rx.getBufferLen() == 0:
+                    head, payload, eop = split_message(mensagem)
+                    if eop != b'\xfb\xfb\xfb':
+                        print("Erro no EOP!")
+                        break
+                    if len(payload) != head[2].to_bytes(length=1, byteorder='big'):
+                        print("Tamanho do payload não condiz com o head!")
+                        break
+                    num_msg += 1
+                    if num_msg != mensagem[0].to_bytes(length=1, byteorder='big'):
+                        print("Número do pacote não condiz!")
+                        break
+                    mensagens.append(mensagem)
+                    com1.sendData(MENSAGEM_SUCESSO)
+                    if num_msg == mensagem[1].to_bytes(length=1, byteorder='big'):
+                        print("Comunicação encerrada.")
+                        finalizado = True
+                    
+                    
 
-            if com1.rx.getBufferLen() == 0:
-                mensagens = split_message(mensagem)
-                break
-        
-        print('a'*50)
-        mensagens = mensagens
+        if finalizado == False:
+            print("Aconteceu algum erro...")
+
         print(mensagens)
-        
-        num_comandos = len(mensagens)
+        # #acesso aos bytes recebidos
+        # while True:
+        #     rxBuffer, nRx = com1.getData(1)
+        #     print("tenho {} bytes" .format(com1.rx.getBufferLen()))
+        #     mensagem += rxBuffer
+        #     print(mensagem)
 
-        total_bytes = 0
-        for mensagem in mensagens:
-            print(f"Recebi a mensagem {mensagem}")
-            total_bytes += len(mensagem)
+        #     if com1.rx.getBufferLen() == 0:
+        #         mensagens = split_message(mensagem)
+        #         break
+        
+        # print('a'*50)
+        # mensagens = mensagens
+        # print(mensagens)
+        
+        # num_comandos = len(mensagens)
 
-        print(f"Recebi {num_comandos} comandos, totalizando {total_bytes} bytes!")
+        # total_bytes = 0
+        # for mensagem in mensagens:
+        #     print(f"Recebi a mensagem {mensagem}")
+        #     total_bytes += len(mensagem)
+
+        # print(f"Recebi {num_comandos} comandos, totalizando {total_bytes} bytes!")
         
-        #for i in range(len(rxBuffer)):
-            #print("recebeu {}" .format(rxBuffer[i]))
+        # #for i in range(len(rxBuffer)):
+        #     #print("recebeu {}" .format(rxBuffer[i]))
         
-        confirmacao = bytearray([num_comandos])
-        #confirmacao = bytearray([9])
-        com1.sendData(confirmacao)
+        # confirmacao = bytearray([num_comandos])
+        # #confirmacao = bytearray([9])
+        # com1.sendData(confirmacao)
 
         # Encerra comunicação
         print("-------------------------")
