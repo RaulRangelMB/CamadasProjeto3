@@ -16,6 +16,8 @@ import numpy as np
 import random
 import datetime
 
+EOP = b"/xfb/xfb/xfb"
+
 command1 = b'\x00\x00\x00\x00'
 command2 = b'\x00\x00\xBB\x00'
 command3 = b'\xBB\x00\x00'
@@ -28,7 +30,7 @@ command9 = b'\xBB'
 
 commands = [command1,command2,command3,command4,command5,command6,command7,command8,command9]
 
-quantidade = random.randint(10,30)
+quantidade = random.randint(50,70)
 
 def sorteia_comandos():
     random_commands = []
@@ -39,13 +41,56 @@ def sorteia_comandos():
         i+=1
     return random_commands
 
-def constroi_mensagem(lista_comandos):
+def constroi_mensagem(informacao):
     mensagem = bytearray([])
-    for command in lista_comandos:
+    for command in informacao:
         mensagem += command
         mensagem += b'\xFB'
     return mensagem    
+
+def constroi_head(posicao, total_pacotes, tamanho_payload, handshake):
+    if not (0 <= posicao <= 255 and 0 <= total_pacotes <= 255 and 0 <= tamanho_payload <= 255 and 0 <= handshake <= 255):
+        raise ValueError("Os valores devem estar no intervalo de 0 a 255.")
+    byte_array = bytearray([0] * 12)
     
+    byte_array[0:1] = int.to_bytes(posicao,1,byteorder='little')
+    byte_array[1:2] = int.to_bytes(total_pacotes,1, byteorder='little')
+    byte_array[2:3] = int.to_bytes(tamanho_payload,1, byteorder='little')
+    byte_array[-1:0] = int.to_bytes(handshake,1, byteorder='little')
+
+    return byte_array
+
+def constroi_datagramas(lista_payloads):
+    datagramas = []
+    posicao = 0
+    total_pacotes = len(lista_payloads)
+    for payload in lista_payloads:
+        print(payload)
+        tamanho_payload = len(payload)
+        head = constroi_head(posicao, total_pacotes, tamanho_payload, 0)
+        print("b")
+        print(head)
+        datagrama = head + payload
+        print(datagrama)
+        print("a")
+        datagrama = datagrama + EOP
+        
+        datagramas.append(datagrama)
+    return datagramas
+        
+    
+def constroi_pacotes(mensagem):
+    print(type(mensagem))
+    pacotes = []
+    i = 0
+    while i < len(mensagem):
+        pacote = bytearray([])
+        while len(pacote) < 50 and i < len(mensagem):
+            pacote.append(mensagem[i])
+            i += 1
+        pacotes.append(pacote)
+        print(len(pacote))
+    return pacotes
     
 
 # voce deverá descomentar e configurar a porta com através da qual ira fazer comunicaçao
@@ -87,6 +132,13 @@ def main():
         print(comandos)
         txBuffer = constroi_mensagem(comandos)
         print(txBuffer)
+        lista = constroi_pacotes(txBuffer)
+        #print(lista)
+        datagramas = constroi_datagramas(lista)
+        print(datagramas)
+        
+        
+        
         #txBuffer = b'\x12\x13\xAA'  #isso é um array de bytes
         print("meu array de bytes tem tamanho {}" .format(len(txBuffer)))
         #faça aqui uma conferência do tamanho do seu txBuffer, ou seja, quantos bytes serão enviados.
