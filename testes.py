@@ -44,17 +44,19 @@ message = constroi_mensagem(comandos)
 print(message)
 
 res = split_message(message)
-print(res[0])
-print(res[1])
-print(res[2])
+# print(res[0])
+# print(res[1])
+# print(res[2])
 
-print(command1)
-for i in range(len(command1)):
-    print(i)
+# print(command1)
+# for i in range(len(command1)):
+#     print(i)
 
 byte_array = bytearray([2,5,6])
 print(byte_array)
 byte_array[0:1] = int.to_bytes(99,1,'big')
+byte_array[1:2] = int.to_bytes(98,1,'big')
 print(byte_array)
 print(int.to_bytes(2,1,'big'))
-print(int.to_bytes(2,1,'little'))
+print(int.to_bytes(2,1,'little') + int.to_bytes(3,1,'big') + int.to_bytes(17,1,'big'))
+print(int.to_bytes(4,1,'little') + int.to_bytes(5,1,'big') + int.to_bytes(50,1,'big'))
