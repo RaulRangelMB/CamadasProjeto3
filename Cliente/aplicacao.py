@@ -16,7 +16,11 @@ import numpy as np
 import random
 import datetime
 
-EOP = b"/xfb/xfb/xfb"
+EOP = b"\xfb\xfb\xfb"
+
+MENSAGEM_SUCESSO = b'\x00\x00\00\00\00\00\00\00\00\00\00\00' + EOP
+
+MENSAGEM_HANDSHAKE = b'\x00\x00\00\00\00\00\00\00\00\00\00\01' + EOP
 
 command1 = b'\x00\x00\x00\x00'
 command2 = b'\x00\x00\xBB\x00'
@@ -51,31 +55,32 @@ def constroi_mensagem(informacao):
 def constroi_head(posicao, total_pacotes, tamanho_payload, handshake):
     if not (0 <= posicao <= 255 and 0 <= total_pacotes <= 255 and 0 <= tamanho_payload <= 255 and 0 <= handshake <= 255):
         raise ValueError("Os valores devem estar no intervalo de 0 a 255.")
-    byte_array = bytearray([0] * 12)
+    print(f'posicao {posicao} totalpacotes {total_pacotes} tamanho payload: {tamanho_payload}')
+    byte_array = bytearray()
+    byte_array += int.to_bytes(posicao,1,byteorder='little')
+    byte_array += int.to_bytes(total_pacotes,1, byteorder='little')
+    byte_array += int.to_bytes(tamanho_payload, 1, byteorder='little')
     
-    byte_array[0:1] = int.to_bytes(posicao,1,byteorder='little')
-    byte_array[1:2] = int.to_bytes(total_pacotes,1, byteorder='little')
-    byte_array[2:3] = int.to_bytes(tamanho_payload,1, byteorder='little')
-    byte_array[-1:0] = int.to_bytes(handshake,1, byteorder='little')
+    byte_array += bytearray([0]*8)
+    
+    byte_array += int.to_bytes(handshake,1, byteorder='little')
 
     return byte_array
 
+
+
 def constroi_datagramas(lista_payloads):
     datagramas = []
-    posicao = 0
+    posicao = 1
     total_pacotes = len(lista_payloads)
     for payload in lista_payloads:
-        print(payload)
         tamanho_payload = len(payload)
         head = constroi_head(posicao, total_pacotes, tamanho_payload, 0)
-        print("b")
-        print(head)
         datagrama = head + payload
-        print(datagrama)
-        print("a")
         datagrama = datagrama + EOP
         
         datagramas.append(datagrama)
+        posicao += 1
     return datagramas
         
     
@@ -89,9 +94,16 @@ def constroi_pacotes(mensagem):
             pacote.append(mensagem[i])
             i += 1
         pacotes.append(pacote)
-        print(len(pacote))
     return pacotes
-    
+
+def split_message(message):
+    head = message[0:12]
+    eop = message[-3:]
+    message = message[12:]
+    message = message[:-3]
+    payload = message
+
+    return head, payload, eop
 
 # voce deverá descomentar e configurar a porta com através da qual ira fazer comunicaçao
 #   para saber a sua porta, execute no terminal :
@@ -130,25 +142,60 @@ def main():
         comandos = sorteia_comandos()
         print(f"Serão enviados {len(comandos)} comandos")
         print(comandos)
-        txBuffer = constroi_mensagem(comandos)
-        print(txBuffer)
-        lista = constroi_pacotes(txBuffer)
+        conteudo = constroi_mensagem(comandos)
+        lista = constroi_pacotes(conteudo)
         #print(lista)
         datagramas = constroi_datagramas(lista)
-        print(datagramas)
+
+        handshake = False
+        mensagem_hs = bytearray()
+
+        tempo_handshake = datetime.datetime.now()
         
+        com1.sendData(MENSAGEM_HANDSHAKE)
         
-        
-        #txBuffer = b'\x12\x13\xAA'  #isso é um array de bytes
-        print("meu array de bytes tem tamanho {}" .format(len(txBuffer)))
-        #faça aqui uma conferência do tamanho do seu txBuffer, ou seja, quantos bytes serão enviados.
+        while not handshake:
             
-        #finalmente vamos transmitir os todos. Para isso usamos a funçao sendData que é um método da camada enlace.
-        #faça um print para avisar que a transmissão vai começar.
-        #tente entender como o método send funciona!
-        #Cuidado! Apenas trasmita arrays de bytes!
+            if (datetime.datetime.now() - tempo_handshake > datetime.timedelta(seconds=5)):
+                print("Reenviando HANDSHAKE, NÃO HOUVE RESPOSTA")
+                com1.sendData(MENSAGEM_HANDSHAKE)
+                tempo_handshake = datetime.datetime.now()
+            
+            
+            if com1.rx.getBufferLen() > 0:
+                rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
+                mensagem_hs += rxBuffer
+
+                if com1.rx.getBufferLen() == 0:
+                    head, payload, eop = split_message(mensagem_hs)
+                    
+                    if eop != b'\xfb\xfb\xfb':
+                        print("Erro no EOP!")
+                        break
+                
+                    if len(payload) != int(head[2]):
+                        print("Tamanho do payload não condiz com o head!")
+                        break
+                    print(mensagem_hs)
+                    if mensagem_hs == MENSAGEM_HANDSHAKE:
+                        handshake = True
+                        print("HANDSHAKE FEITO COM SUCESSO")
+    
+    
+
+        for datagrama in datagramas:
+            txBuffer = datagrama
+            com1.sendData(np.asarray(txBuffer))
+            recebeu = False
+            while not recebeu:
+                if com1.rx.getBufferLen() > 0:
+                    recebeu = True
+                    rxBuffer, nRx = com1.getData(1)
+                    mensagem += rxBuffer
+            
         
-        com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
+        
+        #as array apenas como boa pratica para casos de ter uma outra forma de dados
         # A camada enlace possui uma camada inferior, TX possui um método para conhecermos o status da transmissão
         # O método não deve estar fincionando quando usado como abaixo. deve estar retornando zero. Tente entender como esse método funciona e faça-o funcionar.
         while com1.tx.getIsBussy():
