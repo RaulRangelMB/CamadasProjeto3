@@ -13,6 +13,7 @@
 from enlace import *
 import time
 import numpy as np
+import datetime
 
 # voce deverá descomentar e configurar a porta com através da qual ira fazer comunicaçao
 #   para saber a sua porta, execute no terminal :
@@ -93,6 +94,8 @@ def main():
         mensagem = bytearray()
         mensagens = []
         finalizado = False
+        tempo_inicio = datetime.datetime.now()
+        last_mensagem = bytearray()
 
         while not finalizado:
             if com1.rx.getBufferLen() > 0:
@@ -106,9 +109,13 @@ def main():
                 if com1.rx.getBufferLen() == 0:
                     head, payload, eop = split_message(mensagem)
                     num_msg += 1
+
+                    if mensagem == last_mensagem:
+                        com1.sendData(MENSAGEM_SUCESSO)
+                        num_msg -= 1
                     
                     # Checando se EOP veio errado
-                    if eop != b'\xfb\xfb\xfb':
+                    elif eop != b'\xfb\xfb\xfb':
                         print(eop)
                         print("Erro no EOP!")
                         num_msg -= 1
@@ -125,6 +132,8 @@ def main():
                     # Checando se o número da mensagem veio errado
                     elif num_msg != int(mensagem[0]):
                         print("Número do pacote não condiz!")
+                        print(f'Número da mensagem recebida {mensagem[0]}')
+                        print(f'Número da mensagem interna {num_msg}')
                         num_msg -= 1
                         com1.sendData(MENSAGEM_ERRO)
                     
@@ -138,9 +147,16 @@ def main():
                         # Adicionando mensagem na lista de mensagens e enviando a mensagem de sucesso
                         mensagens.append(mensagem)
                         com1.sendData(MENSAGEM_SUCESSO)
+                        last_mensagem = mensagens[-1]
+                        print("Mensagem recebida! Enviando mensagem de sucesso")
 
                     mensagem = bytearray()
-                    
+            
+            if (datetime.datetime.now() - tempo_inicio > datetime.timedelta(seconds=5)):
+                    print("Não recebo nada já faz 5 segundos")
+                    tempo_inicio = datetime.datetime.now()
+                    print('enviando mensagem de erro...')
+                    com1.sendData(MENSAGEM_ERRO)                    
                     
 
         if finalizado == False:
