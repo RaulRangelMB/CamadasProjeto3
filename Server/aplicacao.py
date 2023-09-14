@@ -28,6 +28,9 @@ EOP = b'\xfb\xfb\xfb'
 
 MENSAGEM_SUCESSO = b'\00\00\00\00\00\00\00\00\00\00\00\00' + EOP
 MENSAGEM_HANDSHAKE = b'\00\00\00\00\00\00\00\00\00\00\00\01' + EOP
+MENSAGEM_ERRO = b'\00\00\00\00\00\00\00\00\00\00\00\02' + EOP
+MENSAGEM_ENCERRADA = b'\00\00\00\00\00\00\00\00\00\00\00\03' + EOP
+
 
 def split_message(message):
     head = message[0:12]
@@ -55,11 +58,6 @@ def main():
         rxBuffer, nRx = com1.getData(1)
         com1.rx.clearBuffer()
         time.sleep(.1)
-
-        num_msg = 1
-        mensagem = bytearray()
-        mensagens = []
-        finalizado = False
 
         handshake = False
         mensagem_hs = bytearray()
@@ -91,42 +89,58 @@ def main():
 
         print("Handshake feito!")
 
+        num_msg = 0
+        mensagem = bytearray()
+        mensagens = []
+        finalizado = False
+
         while not finalizado:
             if com1.rx.getBufferLen() > 0:
                 rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
                 #print("tenho {} bytes" .format(com1.rx.getBufferLen()))
                 mensagem += rxBuffer
                 print(mensagem)
+                print(len(mensagem))
                 #print("aaa"*50)
 
                 if com1.rx.getBufferLen() == 0:
                     head, payload, eop = split_message(mensagem)
+                    num_msg += 1
                     
+                    # Checando se EOP veio errado
                     if eop != b'\xfb\xfb\xfb':
                         print(eop)
                         print("Erro no EOP!")
-                        break
+                        num_msg -= 1
+                        com1.sendData(MENSAGEM_ERRO)
                     
+                    # Checando se tamanho do payload veio errado
                     if len(payload) != int(head[2]):
                         print("Tamanho do payload não condiz com o head!")
                         print(len(payload))
                         print(head[2])
                         print(int(head[2]))
-                        break
+                        num_msg -= 1
+                        com1.sendData(MENSAGEM_ERRO)
                     
+                    # Checando se o número da mensagem veio errado
                     if num_msg != int(mensagem[0]):
                         print("Número do pacote não condiz!")
-                        print
-                        break
+                        num_msg -= 1
+                        com1.sendData(MENSAGEM_ERRO)
                     
-                    mensagens.append(mensagem)
-                    mensagem = bytearray()
-                    num_msg += 1
-                    com1.sendData(MENSAGEM_SUCESSO)
-                    
+                    # Se o número da mensagem for igual ao total de pacotes, acaba a comunicação
                     if num_msg == int(mensagem[1]):
                         print("Comunicação encerrada.")
+                        mensagens.append(mensagem)
+                        com1.sendData(MENSAGEM_ENCERRADA)
                         finalizado = True
+                    else:
+                        # Adicionando mensagem na lista de mensagens e enviando a mensagem de sucesso
+                        mensagens.append(mensagem)
+                        com1.sendData(MENSAGEM_SUCESSO)
+
+                    mensagem = bytearray()
                     
                     
 
