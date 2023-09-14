@@ -26,6 +26,8 @@ MENSAGEM_ERRO = b'\00\00\00\00\00\00\00\00\00\00\00\02' + EOP
 
 MENSAGEM_ENCERRADA = b'\00\00\00\00\00\00\00\00\00\00\00\03' + EOP
 
+MENSAGEM_VOLTA = b'\00\00\00\00\00\00\00\00\00\00\00\04' + EOP
+
 command1 = b'\x00\x00\x00\x00'
 command2 = b'\x00\x00\xBB\x00'
 command3 = b'\xBB\x00\x00'
@@ -134,15 +136,19 @@ def main():
         
         print("Abriu a comunicação")
 
+        imageR = "kakakakaka.jpeg"
+        imagemBytes = open(imageR, 'rb').read()
+        pacotes = constroi_pacotes(imagemBytes)
+        datagramas = constroi_datagramas(pacotes)
 
-        print("Sorteando comandos e construíndo mensagens")
-        comandos = sorteia_comandos()
-        print(f"Serão enviados {len(comandos)} comandos")
-        print(comandos)
-        conteudo = constroi_mensagem(comandos)
-        lista = constroi_pacotes(conteudo)
-        #print(lista)
-        datagramas = constroi_datagramas(lista)
+        # print("Sorteando comandos e construíndo mensagens")
+        # comandos = sorteia_comandos()
+        # print(f"Serão enviados {len(comandos)} comandos")
+        # print(comandos)
+        # conteudo = constroi_mensagem(comandos)
+        # lista = constroi_pacotes(conteudo)
+        # #print(lista)
+        # datagramas = constroi_datagramas(lista)
 
         handshake = False
         mensagem_hs = bytearray()
@@ -178,7 +184,7 @@ def main():
                         handshake = True
                         print("HANDSHAKE FEITO COM SUCESSO")
                     
-                    #if mensagem_hs == MENSAGEM_ERRO:
+                        
                         
     
     
@@ -219,10 +225,16 @@ def main():
                         print(f"Pacote {pacote_number} recebido pelo cliente")
                         pacote_number += 1
                         i += 1
+                        tempo_inicio = datetime.datetime.now()
                     elif mensagem == MENSAGEM_ENCERRADA:
                         print(f"Pacote {pacote_number} recebido pelo cliente")
                         print("Finalizando...")
                         i += 1
+                        tempo_inicio = datetime.datetime.now()
+                    elif mensagem_hs == MENSAGEM_VOLTA:
+                        i -= 1
+                        pacote_number -= 1
+                        print("PASSEI DO PROBLEMA")
                     else:
                         print("Erro na mensagem de confirmação de recebimento do pacote.")
                         print(mensagem)
