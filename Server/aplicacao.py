@@ -25,13 +25,15 @@ import datetime
 #serialName = "/dev/tty.usbmodem1411" # Mac    (variacao de)
 serialName = "COM5"                  # Windows(variacao de)
 
+imageW = 'copia.png'
+
 EOP = b'\xfb\xfb\xfb'
 
 MENSAGEM_SUCESSO = b'\00\00\00\00\00\00\00\00\00\00\00\00' + EOP
 MENSAGEM_HANDSHAKE = b'\00\00\00\00\00\00\00\00\00\00\00\01' + EOP
 MENSAGEM_ERRO = b'\00\00\00\00\00\00\00\00\00\00\00\02' + EOP
 MENSAGEM_ENCERRADA = b'\00\00\00\00\00\00\00\00\00\00\00\03' + EOP
-
+MENSAGEM_VOLTA = b'\00\00\00\00\00\00\00\00\00\00\00\04' + EOP
 
 def split_message(message):
     head = message[0:12]
@@ -95,24 +97,35 @@ def main():
         mensagens = []
         finalizado = False
         tempo_inicio = datetime.datetime.now()
-        last_mensagem = bytearray()
+        last_mensagem = bytearray([0])
 
         while not finalizado:
             if com1.rx.getBufferLen() > 0:
                 rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
                 #print("tenho {} bytes" .format(com1.rx.getBufferLen()))
                 mensagem += rxBuffer
-                print(mensagem)
-                print(len(mensagem))
+                print(f"Número da mensagem recebida {num_msg+1}")
+                print(f"Mensagem atual: {mensagem[0]} {mensagem}")
+                print(f"Last message:   {last_mensagem[0]} {last_mensagem}")
+                print(f'Recebi {len(mensagem)} bytes')
                 #print("aaa"*50)
 
                 if com1.rx.getBufferLen() == 0:
                     head, payload, eop = split_message(mensagem)
                     num_msg += 1
 
+                    print(f"len mensagens: {len(mensagens)}")
+                    print(f'num_msg: {num_msg}')
+
                     if mensagem == last_mensagem:
+                        print("mensagem atual igual a ultima")
                         com1.sendData(MENSAGEM_SUCESSO)
+                        print("Mensagem recebida! Enviando mensagem de sucesso 1")
                         num_msg -= 1
+
+                    elif num_msg == mensagem[0] - 1:
+                        com1.sendData(MENSAGEM_VOLTA)
+                        print("VEIO UM A MAIS VOLTA AI MANOS")
                     
                     # Checando se EOP veio errado
                     elif eop != b'\xfb\xfb\xfb':
@@ -136,6 +149,12 @@ def main():
                         print(f'Número da mensagem interna {num_msg}')
                         num_msg -= 1
                         com1.sendData(MENSAGEM_ERRO)
+
+                    # Checando se o tamanho da mensagem é menor ou igual a 65
+                    elif len(mensagem) > 65:
+                        print(f"Tamanho da mensagem inesperado! {len(mensagem)}")
+                        num_msg -= 1
+                        com1.sendData(MENSAGEM_ERRO)
                     
                     # Se o número da mensagem for igual ao total de pacotes, acaba a comunicação
                     elif num_msg == int(mensagem[1]):
@@ -148,9 +167,10 @@ def main():
                         mensagens.append(mensagem)
                         com1.sendData(MENSAGEM_SUCESSO)
                         last_mensagem = mensagens[-1]
-                        print("Mensagem recebida! Enviando mensagem de sucesso")
+                        print("Mensagem recebida! Enviando mensagem de sucesso 2")
 
                     mensagem = bytearray()
+                    tempo_inicio = datetime.datetime.now()
             
             if (datetime.datetime.now() - tempo_inicio > datetime.timedelta(seconds=5)):
                     print("Não recebo nada já faz 5 segundos")
@@ -161,16 +181,26 @@ def main():
 
         if finalizado == False:
             print("Aconteceu algum erro...")
+        else:
+            # Encerra comunicação
+            print("-------------------------")
+            print("Comunicação encerrada")
+            print("-------------------------")
+            com1.disable()
 
         print(mensagens)
 
-        # Encerra comunicação
-        print("-------------------------")
-        print("Comunicação encerrada")
-        print("-------------------------")
-        com1.disable()
+        imagem = bytearray()
+        for mensagem in mensagens:
+            head, payload, eop = split_message(mensagem)
+            imagem += payload
 
+        print("Salvando dados de arquivo")
+        print(" {} ".format(imageW))
+        f = open(imageW, 'wb')
+        f.write(imagem)
 
+        f.close()
         
     except Exception as erro:
         print("ops! :-\\")
