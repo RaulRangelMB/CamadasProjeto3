@@ -136,7 +136,8 @@ def main():
         
         print("Abriu a comunicação")
 
-        imageR = "kakakakaka.jpeg"
+        #imageR = "kakakakaka.jpeg"
+        imageR = "testes.jpeg"
         imagemBytes = open(imageR, 'rb').read()
         pacotes = constroi_pacotes(imagemBytes)
         datagramas = constroi_datagramas(pacotes)
@@ -156,12 +157,16 @@ def main():
         tempo_handshake = datetime.datetime.now()
         
         com1.sendData(MENSAGEM_HANDSHAKE)
+        while com1.tx.getIsBussy():
+            pass
         
         while not handshake:
             
             if (datetime.datetime.now() - tempo_handshake > datetime.timedelta(seconds=5)):
                 print("Reenviando HANDSHAKE, NÃO HOUVE RESPOSTA")
                 com1.sendData(MENSAGEM_HANDSHAKE)
+                while com1.tx.getIsBussy():
+                    pass
                 tempo_handshake = datetime.datetime.now()
             
             
@@ -196,12 +201,12 @@ def main():
             datagrama = datagramas[i]
             mensagem = bytearray()
             
-            # # SIMULAÇÃO DE ERRO 
-            # if i == 2 and flag_erro:
-            #     #datagrama = datagrama[:-1]  #OPÇÃO 1
-            #     #datagrama = int.to_bytes(4, 1, 'little') + datagrama[1:] # OPÇÃO 2, erro no número do pacote
-            #     #datagrama = datagrama[0:1] + datagrama[1:2] + int.to_bytes(51, 1, 'little') + datagrama[3:] #OPÇÃO 3, tamanho do payload errado
-            #     flag_erro = False
+            # SIMULAÇÃO DE ERRO 
+            if i == 2 and flag_erro:
+                #datagrama = datagrama[:-1]  #OPÇÃO 1
+                datagrama = int.to_bytes(4, 1, 'little') + datagrama[1:] # OPÇÃO 2, erro no número do pacote
+                #datagrama = datagrama[0:1] + datagrama[1:2] + int.to_bytes(51, 1, 'little') + datagrama[3:] #OPÇÃO 3, tamanho do payload errado
+                flag_erro = False
             
             print(datagrama)
             recebeu_pacote = False
@@ -209,6 +214,8 @@ def main():
             txBuffer = datagrama
             
             com1.sendData(np.asarray(txBuffer))
+            while com1.tx.getIsBussy():
+                pass
             
             while not recebeu_pacote:
                 if (datetime.datetime.now() - tempo_inicio > datetime.timedelta(seconds=5)):
