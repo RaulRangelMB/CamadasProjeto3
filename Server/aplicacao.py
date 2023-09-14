@@ -115,22 +115,21 @@ def main():
                         com1.sendData(MENSAGEM_ERRO)
                     
                     # Checando se tamanho do payload veio errado
-                    if len(payload) != int(head[2]):
+                    elif len(payload) != int(head[2]):
                         print("Tamanho do payload não condiz com o head!")
-                        print(len(payload))
-                        print(head[2])
-                        print(int(head[2]))
+                        print(f'Tamannho do payload recebido {len(payload)}')
+                        print(f'Tamanho do payload no head {head[2]}')
                         num_msg -= 1
                         com1.sendData(MENSAGEM_ERRO)
                     
                     # Checando se o número da mensagem veio errado
-                    if num_msg != int(mensagem[0]):
+                    elif num_msg != int(mensagem[0]):
                         print("Número do pacote não condiz!")
                         num_msg -= 1
                         com1.sendData(MENSAGEM_ERRO)
                     
                     # Se o número da mensagem for igual ao total de pacotes, acaba a comunicação
-                    if num_msg == int(mensagem[1]):
+                    elif num_msg == int(mensagem[1]):
                         print("Comunicação encerrada.")
                         mensagens.append(mensagem)
                         com1.sendData(MENSAGEM_ENCERRADA)
@@ -148,42 +147,14 @@ def main():
             print("Aconteceu algum erro...")
 
         print(mensagens)
-        # #acesso aos bytes recebidos
-        # while True:
-        #     rxBuffer, nRx = com1.getData(1)
-        #     print("tenho {} bytes" .format(com1.rx.getBufferLen()))
-        #     mensagem += rxBuffer
-        #     print(mensagem)
-
-        #     if com1.rx.getBufferLen() == 0:
-        #         mensagens = split_message(mensagem)
-        #         break
-        
-        # print('a'*50)
-        # mensagens = mensagens
-        # print(mensagens)
-        
-        # num_comandos = len(mensagens)
-
-        # total_bytes = 0
-        # for mensagem in mensagens:
-        #     print(f"Recebi a mensagem {mensagem}")
-        #     total_bytes += len(mensagem)
-
-        # print(f"Recebi {num_comandos} comandos, totalizando {total_bytes} bytes!")
-        
-        # #for i in range(len(rxBuffer)):
-        #     #print("recebeu {}" .format(rxBuffer[i]))
-        
-        # confirmacao = bytearray([num_comandos])
-        # #confirmacao = bytearray([9])
-        # com1.sendData(confirmacao)
 
         # Encerra comunicação
         print("-------------------------")
         print("Comunicação encerrada")
         print("-------------------------")
         com1.disable()
+
+
         
     except Exception as erro:
         print("ops! :-\\")
