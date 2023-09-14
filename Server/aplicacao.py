@@ -101,6 +101,9 @@ def main():
 
         while not finalizado:
             if com1.rx.getBufferLen() > 0:
+                time.sleep(0.2)
+                while com1.tx.getIsBussy():
+                    pass
                 rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
                 #print("tenho {} bytes" .format(com1.rx.getBufferLen()))
                 mensagem += rxBuffer
@@ -125,6 +128,7 @@ def main():
 
                     elif num_msg == mensagem[0] - 1:
                         com1.sendData(MENSAGEM_VOLTA)
+                        num_msg -= 1
                         print("VEIO UM A MAIS VOLTA AI MANOS")
                     
                     # Checando se EOP veio errado
@@ -176,7 +180,7 @@ def main():
                     print("Não recebo nada já faz 5 segundos")
                     tempo_inicio = datetime.datetime.now()
                     print('enviando mensagem de erro...')
-                    com1.sendData(MENSAGEM_ERRO)                    
+                    com1.sendData(MENSAGEM_ERRO)                   
                     
 
         if finalizado == False:
