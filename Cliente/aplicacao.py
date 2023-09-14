@@ -206,9 +206,9 @@ def main():
             
             while not recebeu_pacote:
                 if (datetime.datetime.now() - tempo_inicio > datetime.timedelta(seconds=5)):
-                    print("Servidor não deu resposta")
+                    print("Servidor não deu resposta há 5 segundos")
                     tempo_inicio = datetime.datetime.now()
-                    print("saindo")
+                    print("Esperando...")
                     
                 
                 if com1.rx.getBufferLen() > 0:
