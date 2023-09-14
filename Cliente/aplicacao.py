@@ -177,37 +177,55 @@ def main():
                     if mensagem_hs == MENSAGEM_HANDSHAKE:
                         handshake = True
                         print("HANDSHAKE FEITO COM SUCESSO")
+                    
+                    #if mensagem_hs == MENSAGEM_ERRO:
+                        
     
     
         tempo_inicio = datetime.datetime.now()
         pacote_number = 1
-        
-        for datagrama in datagramas:
+        i = 0
+        flag_erro = True
+        while i < len(datagramas):
+            datagrama = datagramas[i]
             mensagem = bytearray()
+            
+            # # SIMULAÇÃO DE ERRO 
+            # if i == 2 and flag_erro:
+            #     #datagrama = datagrama[:-1]  #OPÇÃO 1
+            #     #datagrama = int.to_bytes(4, 1, 'little') + datagrama[1:] # OPÇÃO 2, erro no número do pacote
+            #     #datagrama = datagrama[0:1] + datagrama[1:2] + int.to_bytes(51, 1, 'little') + datagrama[3:] #OPÇÃO 3, tamanho do payload errado
+            #     flag_erro = False
+            
+            print(datagrama)
+            recebeu_pacote = False
+            
             txBuffer = datagrama
+            
             com1.sendData(np.asarray(txBuffer))
             
-            recebeu_pacote = False
             while not recebeu_pacote:
-                if (datetime.datetime.now() - tempo_handshake > datetime.timedelta(seconds=5)):
-                    print("Servidor não deu resposta")
+                if (datetime.datetime.now() - tempo_inicio > datetime.timedelta(seconds=5)):
+                    print("Servidor não deu resposta há 5 segundos")
                     tempo_inicio = datetime.datetime.now()
-                    print("saindo")
-                    exit
+                    print("Esperando...")
+                    
                 
                 if com1.rx.getBufferLen() > 0:
                     recebeu_pacote = True
                     rxBuffer, nRx = com1.getData(com1.rx.getBufferLen())
                     mensagem += rxBuffer
-                    print(mensagem)
                     if mensagem == MENSAGEM_SUCESSO:
                         print(f"Pacote {pacote_number} recebido pelo cliente")
                         pacote_number += 1
-                    if mensagem == MENSAGEM_ENCERRADA:
+                        i += 1
+                    elif mensagem == MENSAGEM_ENCERRADA:
                         print(f"Pacote {pacote_number} recebido pelo cliente")
                         print("Finalizando...")
+                        i += 1
                     else:
                         print("Erro na mensagem de confirmação de recebimento do pacote.")
+                        print(mensagem)
         
         
         #as array apenas como boa pratica para casos de ter uma outra forma de dados
